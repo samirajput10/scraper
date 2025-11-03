@@ -2,34 +2,50 @@
 
 import { formatScrapedEmails } from '@/ai/flows/format-scraped-emails';
 import { z } from 'zod';
+import * as cheerio from 'cheerio';
 
 const urlSchema = z.string().url({ message: 'Please enter a valid URL.' });
 
-// This is a mock function to simulate email scraping.
 // In a real application, this would involve a web scraping library.
-async function mockScrape(url: string): Promise<string[]> {
-    console.log(`Scraping ${url}...`);
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+async function scrape(url: string): Promise<string[]> {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
 
-    // Return a mix of valid and invalid emails to showcase the formatter
-    return [
-        'contact@example.com',
-        'info@business.co',
-        'support@web.org',
-        'john.doe@email.com',
-        'jane.doe at gmail.com', // invalid format
-        'sales[at]company.net', // invalid format
-        'not-an-email',
-        'jobs@', // invalid
-        'marketing@corporate.com',
-        'user@sub.domain.co.uk',
-        'another.email@provider.com',
-        'webmaster@site.net',
-        'hello@world.io',
-        'feedback@mail-server.com',
-        'test@test.com'
-    ];
+        if (!response.ok) {
+            console.error(`Failed to fetch ${url}. Status: ${response.status}`);
+            return [];
+        }
+
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+        let emails: string[] = [];
+        
+        // Search in text content
+        const text = $('body').text();
+        const foundEmails = text.match(emailRegex);
+        if (foundEmails) {
+            emails = emails.concat(foundEmails);
+        }
+
+        // Search in mailto links
+        $('a[href^="mailto:"]').each((i, el) => {
+            const href = $(el).attr('href');
+            if (href) {
+                emails.push(href.replace('mailto:', ''));
+            }
+        });
+
+        // Return unique emails
+        return [...new Set(emails)];
+    } catch (error) {
+        console.error(`Error scraping ${url}:`, error);
+        return [];
+    }
 }
 
 
@@ -40,7 +56,7 @@ export async function scrapeEmailsAction(url: string) {
   }
 
   try {
-    const emails = await mockScrape(validation.data);
+    const emails = await scrape(validation.data);
     return { success: true, emails };
   } catch (error) {
     console.error('Scraping failed:', error);
