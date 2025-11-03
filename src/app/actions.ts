@@ -6,32 +6,80 @@ import * as cheerio from 'cheerio';
 
 const urlSchema = z.string().url({ message: 'Please enter a valid URL.' });
 
-// In a real application, this would involve a web scraping library.
-async function scrape(url: string): Promise<string[]> {
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-        });
+const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const HEADERS = {
+  'User-Agent': 'WebmailHarvester/1.0 (+https://firebase.google.com/docs/app-hosting)',
+};
 
-        if (!response.ok) {
-            console.error(`Failed to fetch ${url}. Status: ${response.status}`);
-            return [];
-        }
-
-        const html = await response.text();
-        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-        const emails = html.match(emailRegex) || [];
-
-        // Return unique emails
-        return [...new Set(emails)];
-    } catch (error) {
-        console.error(`Error scraping ${url}:`, error);
-        return [];
+async function getPage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(10000) });
+    if (!response.ok) {
+      return null;
     }
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      return await response.text();
+    }
+    return null;
+  } catch (error) {
+    // This can happen with timeouts or network errors
+    return null;
+  }
 }
 
+async function crawlEntireWebsite(startUrl: string, maxPages = 50): Promise<string[]> {
+  const parsedStart = new URL(startUrl);
+  const baseDomain = parsedStart.hostname;
+
+  const visited = new Set<string>();
+  const queue: string[] = [startUrl];
+  const foundEmails = new Set<string>();
+  let pagesVisited = 0;
+
+  while (queue.length > 0 && pagesVisited < maxPages) {
+    const url = queue.shift()!;
+    if (visited.has(url)) {
+      continue;
+    }
+    visited.add(url);
+    pagesVisited++;
+
+    const html = await getPage(url);
+    if (!html) {
+      continue;
+    }
+
+    const emailsInPage = html.match(EMAIL_RE) || [];
+    for (const email of emailsInPage) {
+      foundEmails.add(email);
+    }
+
+    const $ = cheerio.load(html);
+    $('a[href]').each((_, element) => {
+      const href = $(element).attr('href')?.trim();
+      if (!href || href.startsWith('mailto:') || href.startsWith('javascript:') || href.startsWith('tel:')) {
+        return;
+      }
+
+      try {
+        const newUrl = new URL(href, url);
+        if (newUrl.hostname === baseDomain && !visited.has(newUrl.href) && !queue.includes(newUrl.href)) {
+          queue.push(newUrl.href);
+        }
+      } catch (e) {
+        // Ignore invalid URLs
+      }
+    });
+    
+    // Gentle delay to avoid overloading server
+    if (queue.length > 0 && pagesVisited < maxPages) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+  }
+
+  return Array.from(foundEmails);
+}
 
 export async function scrapeEmailsAction(url: string) {
   const validation = urlSchema.safeParse(url);
@@ -40,7 +88,7 @@ export async function scrapeEmailsAction(url: string) {
   }
 
   try {
-    const emails = await scrape(validation.data);
+    const emails = await crawlEntireWebsite(validation.data);
     return { success: true, emails };
   } catch (error) {
     console.error('Scraping failed:', error);
