@@ -21,24 +21,8 @@ async function scrape(url: string): Promise<string[]> {
         }
 
         const html = await response.text();
-        const $ = cheerio.load(html);
         const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-        let emails: string[] = [];
-        
-        // Search in text content
-        const text = $('body').text();
-        const foundEmails = text.match(emailRegex);
-        if (foundEmails) {
-            emails = emails.concat(foundEmails);
-        }
-
-        // Search in mailto links
-        $('a[href^="mailto:"]').each((i, el) => {
-            const href = $(el).attr('href');
-            if (href) {
-                emails.push(href.replace('mailto:', ''));
-            }
-        });
+        const emails = html.match(emailRegex) || [];
 
         // Return unique emails
         return [...new Set(emails)];
