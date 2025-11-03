@@ -7,7 +7,7 @@ export function Logo() {
         <Mail className="h-6 w-6 text-primary" />
       </div>
       <h1 className="text-2xl font-bold tracking-tight text-foreground">
-        Webmail Harvester
+        scraper by sami 😁
       </h1>
     </div>
   );
