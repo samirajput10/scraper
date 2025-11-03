@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { FileUp, Download, Wand2, Loader2, FileText, X } from 'lucide-react';
+import { FileUp, Download, Wand2, Loader2, FileText, X, Search } from 'lucide-react';
 import { formatEmailsAction, scrapeEmailsAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from './logo';
 
@@ -21,15 +22,26 @@ export default function EmailScraperPage() {
   const [isScraping, setIsScraping] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [urlInput, setUrlInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  
+  const resetState = () => {
+    setResults([]);
+    setFileName(null);
+    setUrlInput('');
+    if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.type === 'text/plain') {
+        resetState();
         setFileName(file.name);
-        handleFileScrape(file);
+        handleScrape(file);
       } else {
         toast({
           variant: 'destructive',
@@ -40,26 +52,44 @@ export default function EmailScraperPage() {
     }
   };
 
-  async function handleFileScrape(file: File) {
+  const handleUrlSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!urlInput) {
+        toast({
+            variant: 'destructive',
+            title: 'URL is empty',
+            description: 'Please enter a website URL to scrape.',
+        });
+        return;
+    }
+    resetState();
+    handleScrape(urlInput);
+  }
+
+  async function handleScrape(source: File | string) {
     setIsScraping(true);
     setResults([]);
-    const fileContent = await file.text();
-    const result = await scrapeEmailsAction(fileContent);
+
+    const content = typeof source === 'string' ? source : await source.text();
+    const result = await scrapeEmailsAction(content);
+    
     setIsScraping(false);
 
     if (result.success) {
       setResults(result.results || []);
+       if (result.results?.length === 0) {
+        toast({
+          title: 'No emails found',
+          description: 'The scraper ran successfully but did not find any emails.',
+        });
+      }
     } else {
       toast({
         variant: 'destructive',
         title: 'Scraping Failed',
         description: result.error,
       });
-      // Reset file input if scraping fails
-      setFileName(null);
-      if(fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      resetState();
     }
   }
 
@@ -120,48 +150,86 @@ export default function EmailScraperPage() {
             <Logo />
         </div>
         <p className="mt-2 text-lg text-muted-foreground">
-          Upload a .txt file with website URLs to start harvesting emails.
+          Harvest emails from a single URL or a list of websites in a .txt file.
         </p>
       </header>
-
+      
       <Card className="w-full max-w-2xl mx-auto shadow-lg transition-all duration-500" style={{borderBottomRightRadius: hasResults ? 0 : 'var(--radius)', borderBottomLeftRadius: hasResults ? 0 : 'var(--radius)'}}>
-        <CardHeader>
-          <CardTitle>Website List</CardTitle>
-          <CardDescription>Upload a .txt file containing one website URL per line.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Input
-            id="file-upload"
-            type="file"
-            accept=".txt"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            disabled={isScraping}
-          />
-          {!fileName && (
-            <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isScraping}>
-              {isScraping ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileUp className="mr-2 h-4 w-4" />
-              )}
-              {isScraping ? 'Processing...' : 'Upload .txt File'}
-            </Button>
-          )}
+        <Tabs defaultValue="file" className="w-full">
+            <CardHeader>
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="file">File Upload</TabsTrigger>
+                    <TabsTrigger value="url">Single URL</TabsTrigger>
+                </TabsList>
+            </CardHeader>
 
-          {fileName && (
-            <div className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
-                <div className='flex items-center gap-2 truncate'>
-                    <FileText className="h-5 w-5 shrink-0" />
-                    <span className="font-medium truncate">{fileName}</span>
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleRemoveFile} disabled={isScraping} className="h-6 w-6 shrink-0">
-                    <X className="h-4 w-4" />
-                </Button>
-            </div>
-          )}
-        </CardContent>
+            <TabsContent value="file">
+                <CardHeader className='pt-0'>
+                    <CardTitle>Website List</CardTitle>
+                    <CardDescription>Upload a .txt file containing one website URL per line.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                <Input
+                    id="file-upload"
+                    type="file"
+                    accept=".txt"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                    disabled={isScraping}
+                />
+                {!fileName && (
+                    <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isScraping}>
+                    {isScraping && !urlInput ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <FileUp className="mr-2 h-4 w-4" />
+                    )}
+                    {isScraping && !urlInput ? 'Processing...' : 'Upload .txt File'}
+                    </Button>
+                )}
+
+                {fileName && (
+                    <div className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
+                        <div className='flex items-center gap-2 truncate'>
+                            <FileText className="h-5 w-5 shrink-0" />
+                            <span className="font-medium truncate">{fileName}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={handleRemoveFile} disabled={isScraping} className="h-6 w-6 shrink-0">
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )}
+                </CardContent>
+            </TabsContent>
+
+            <TabsContent value="url">
+                 <CardHeader className='pt-0'>
+                    <CardTitle>Direct Input</CardTitle>
+                    <CardDescription>Enter a single website URL to scrape for emails.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleUrlSubmit} className="flex gap-2">
+                        <Input 
+                            type="url"
+                            placeholder="https://example.com"
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                            disabled={isScraping}
+                        />
+                        <Button type="submit" disabled={isScraping}>
+                            {isScraping && urlInput ? (
+                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Search className="mr-2 h-4 w-4" />
+                            )}
+                            Scrape
+                        </Button>
+                    </form>
+                </CardContent>
+            </TabsContent>
+
+        </Tabs>
       </Card>
       
       {hasResults && (
@@ -171,7 +239,7 @@ export default function EmailScraperPage() {
                 <div>
                     <CardTitle>Results</CardTitle>
                     <CardDescription>
-                      {isScraping ? 'Searching for emails...' : `${results.length} emails found. You can format or export them.`}
+                      {isScraping ? 'Searching for emails...' : `${results.length} emails found.`}
                     </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -221,7 +289,7 @@ export default function EmailScraperPage() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={2} className="text-center text-muted-foreground h-24">
-                        No emails found from the websites in your file.
+                        No emails found from the provided source.
                       </TableCell>
                     </TableRow>
                   )}
