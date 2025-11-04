@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { FileUp, Download, Wand2, Loader2, FileText, X, Search, FileSpreadsheet } from 'lucide-react';
+import { FileUp, Download, Wand2, Loader2, FileText, X, Search, FileSpreadsheet, CheckCircle, Shield } from 'lucide-react';
 import { formatEmailsAction, scrapeEmailsAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from './logo';
 import * as XLSX from 'xlsx';
@@ -19,47 +18,32 @@ type ScrapedResult = {
   email: string;
 };
 
+const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => (
+  <div className="bg-card p-6 rounded-xl shadow-lg hover:shadow-xl transition-all border border-border">
+    <div className="w-12 h-12 bg-primary/10 dark:bg-primary/20 rounded-lg flex items-center justify-center mb-4">
+      {icon}
+    </div>
+    <h3 className="text-xl font-bold text-card-foreground mb-2">{title}</h3>
+    <p className="text-muted-foreground">{description}</p>
+  </div>
+);
+
+
 export default function EmailScraperPage() {
   const [results, setResults] = useState<ScrapedResult[]>([]);
   const [isScraping, setIsScraping] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const resetState = () => {
     setResults([]);
-    setFileName(null);
     setUrlInput('');
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
   }
-  
-  const handleFileSelect = (fileType: 'text' | 'excel') => {
-    if(fileInputRef.current) {
-        fileInputRef.current.accept = fileType === 'text' ? '.txt' : '.xlsx, .xls';
-        fileInputRef.current.click();
-    }
-  }
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type === 'text/plain' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        resetState();
-        setFileName(file.name);
-        handleScrape(file);
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Invalid File Type',
-          description: 'Please upload a .txt or Excel file.',
-        });
-      }
-    }
-  };
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,177 +170,127 @@ export default function EmailScraperPage() {
     document.body.removeChild(link);
   }
 
-  const handleRemoveFile = () => {
-    setFileName(null);
-    setResults([]);
-    if(fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }
-
-  const hasResults = results.length > 0 || isScraping;
-
   return (
-    <main className="container mx-auto py-8 px-4 md:px-0">
-      <header className="text-center mb-10">
-        <div className="inline-block">
-            <Logo />
-        </div>
-        <p className="mt-2 text-lg text-muted-foreground">
-          Harvest emails from a single URL or a list of websites in a .txt file.
-        </p>
-      </header>
-      
-      <Card className="w-full max-w-2xl mx-auto shadow-lg transition-all duration-500" style={{borderBottomRightRadius: hasResults ? 0 : 'var(--radius)', borderBottomLeftRadius: hasResults ? 0 : 'var(--radius)'}}>
-        <Tabs defaultValue="file" className="w-full">
-            <CardHeader>
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="file">File Upload</TabsTrigger>
-                    <TabsTrigger value="url">Single URL</TabsTrigger>
-                </TabsList>
-            </CardHeader>
+    <main className="container mx-auto px-4 py-12">
+        <header className="text-center mb-16">
+            <div className="inline-block mb-8">
+              <Logo />
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-6">
+                Extract <span className="text-primary">Emails</span> Like a Ninja
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+                The most advanced email scraping toolkit with AI-powered extraction, verification, and enrichment.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button size="lg" className="px-8 py-3 font-medium transition-all shadow-lg hover:shadow-primary/30">
+                    Start Scraping
+                </Button>
+                <Button size="lg" variant="outline" className="px-8 py-3 font-medium transition-all">
+                    Watch Demo
+                </Button>
+            </div>
+        </header>
 
-            <TabsContent value="file">
-                <CardHeader className='pt-0'>
-                    <CardTitle>Website List</CardTitle>
-                    <CardDescription>Upload a .txt or Excel file containing website URLs.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                <Input
-                    id="file-upload"
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
+        <section className="mb-20">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <FeatureCard 
+                    icon={<Search className="text-primary w-6 h-6" />}
+                    title="Smart Scraping"
+                    description="Extract emails from any website with our intelligent algorithms that detect patterns."
+                />
+                <FeatureCard 
+                    icon={<CheckCircle className="text-secondary w-6 h-6" />}
+                    title="Instant Verification"
+                    description="Validate emails in real-time to ensure deliverability and reduce bounce rates."
+                />
+                <FeatureCard 
+                    icon={<Shield className="text-green-500 w-6 h-6" />}
+                    title="GDPR Compliant"
+                    description="All data is processed ethically and in compliance with privacy regulations."
+                />
+            </div>
+        </section>
+
+        <section className="bg-card rounded-xl shadow-xl p-6 md:p-8 mb-16 border border-border">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Try Our Email Scraper</h2>
+            <form onSubmit={handleUrlSubmit} className="flex flex-col md:flex-row gap-4 mb-4">
+                <Input 
+                    type="text" 
+                    placeholder="Enter URL to scrape (e.g. example.com)" 
+                    className="flex-grow px-4 py-3 h-12 text-base focus:ring-2 focus:ring-primary focus:border-transparent"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
                     disabled={isScraping}
                 />
-                {!fileName && (
+                <Button type="submit" size="lg" className="px-6 py-3 font-medium transition-all h-12" disabled={isScraping}>
+                    {isScraping ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <Search className="mr-2 h-5 w-5" />
+                    )}
+                    Extract Emails
+                </Button>
+            </form>
+            <div className="bg-background/50 dark:bg-gray-700 rounded-lg p-4 border border-border">
+                <div className="flex items-center justify-between mb-4">
+                    <span className="text-muted-foreground">{isScraping ? 'Scraping...' : `${results.length} emails found`}</span>
                     <div className="flex gap-2">
-                        <Button onClick={() => handleFileSelect('text')} className="w-full" disabled={isScraping}>
-                        {isScraping && !urlInput ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <FileUp className="mr-2 h-4 w-4" />
-                        )}
-                        {isScraping && !urlInput ? 'Processing...' : 'Upload .txt'}
-                        </Button>
-                        <Button onClick={() => handleFileSelect('excel')} className="w-full" disabled={isScraping}>
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Upload Excel
-                        </Button>
-                    </div>
-                )}
-
-                {fileName && (
-                    <div className="flex items-center justify-between p-3 rounded-md border bg-muted/50">
-                        <div className='flex items-center gap-2 truncate'>
-                            <FileText className="h-5 w-5 shrink-0" />
-                            <span className="font-medium truncate">{fileName}</span>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={handleRemoveFile} disabled={isScraping} className="h-6 w-6 shrink-0">
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </div>
-                )}
-                </CardContent>
-            </TabsContent>
-
-            <TabsContent value="url">
-                 <CardHeader className='pt-0'>
-                    <CardTitle>Direct Input</CardTitle>
-                    <CardDescription>Enter a single website URL to scrape for emails.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleUrlSubmit} className="flex gap-2">
-                        <Input 
-                            type="url"
-                            placeholder="example.com"
-                            value={urlInput}
-                            onChange={(e) => setUrlInput(e.target.value)}
-                            disabled={isScraping}
-                        />
-                        <Button type="submit" disabled={isScraping}>
-                            {isScraping && urlInput ? (
-                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Search className="mr-2 h-4 w-4" />
-                            )}
-                            Scrape
-                        </Button>
-                    </form>
-                </CardContent>
-            </TabsContent>
-
-        </Tabs>
-      </Card>
-      
-      {hasResults && (
-        <Card className="w-full max-w-2xl mx-auto shadow-lg" style={{borderTopRightRadius: 0, borderTopLeftRadius: 0}}>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <CardTitle>Results</CardTitle>
-                    <CardDescription>
-                      {isScraping ? 'Searching for emails...' : `${results.length} emails found.`}
-                    </CardDescription>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleFormat} disabled={isFormatting || isScraping || results.length === 0}>
-                        {isFormatting ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Wand2 className="mr-2 h-4 w-4" />
-                        )}
+                      <Button variant="outline" size="sm" onClick={handleFormat} disabled={isFormatting || isScraping || results.length === 0}>
+                        {isFormatting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                         Format with AI
-                    </Button>
-                    <Button onClick={handleExport} disabled={isScraping || results.length === 0}>
+                      </Button>
+                      <Button variant="default" size="sm" onClick={handleExport} disabled={isScraping || results.length === 0}>
                         <Download className="mr-2 h-4 w-4" />
-                        Export CSV
-                    </Button>
+                        Export as CSV
+                      </Button>
+                    </div>
+                </div>
+                <div className="bg-card rounded border border-border min-h-40">
+                  <ScrollArea className="h-72 w-full">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email Address</TableHead>
+                          <TableHead>Source Website</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isScraping ? (
+                          Array.from({length: 10}).map((_, index) => (
+                            <TableRow key={index}>
+                              <TableCell>
+                                <div className="h-4 bg-muted rounded animate-pulse w-3/4"></div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : results.length > 0 ? (
+                          results.map((result, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="font-medium">{result.email}</TableCell>
+                              <TableCell className="text-muted-foreground truncate max-w-xs">{result.website}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={2} className="h-56 text-center text-muted-foreground">
+                              Your extracted emails will appear here
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
                 </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-72 w-full rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email Address</TableHead>
-                    <TableHead>Source Website</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isScraping ? (
-                     Array.from({length: 10}).map((_, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <div className="h-4 bg-muted rounded animate-pulse w-3/4"></div>
-                        </TableCell>
-                         <TableCell>
-                          <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
-                        </TableCell>
-                      </TableRow>
-                     ))
-                  ) : results.length > 0 ? (
-                    results.map((result, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{result.email}</TableCell>
-                        <TableCell className="text-muted-foreground truncate max-w-xs">{result.website}</TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={2} className="text-center text-muted-foreground h-24">
-                        No emails found from the provided source.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      )}
+        </section>
+
+        <footer className="text-center text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} Webmail Harvester. All Rights Reserved.</p>
+        </footer>
     </main>
   );
 }
