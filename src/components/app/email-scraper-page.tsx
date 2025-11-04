@@ -63,7 +63,11 @@ export default function EmailScraperPage() {
         return;
     }
     resetState();
-    handleScrape(urlInput);
+    let urlToScrape = urlInput;
+    if (!urlToScrape.startsWith('http://') && !urlToScrape.startsWith('https://')) {
+        urlToScrape = `https://${urlToScrape}`;
+    }
+    handleScrape(urlToScrape);
   }
 
   async function handleScrape(source: File | string) {
@@ -212,7 +216,7 @@ export default function EmailScraperPage() {
                     <form onSubmit={handleUrlSubmit} className="flex gap-2">
                         <Input 
                             type="url"
-                            placeholder="https://example.com"
+                            placeholder="example.com"
                             value={urlInput}
                             onChange={(e) => setUrlInput(e.target.value)}
                             disabled={isScraping}
