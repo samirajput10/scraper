@@ -96,21 +96,25 @@ export async function scrapeEmailsAction(fileContent: string) {
     if (!fileContent) {
         return { success: false, error: 'The uploaded file is empty.' };
     }
+    
+    const urls = fileContent.split('\n').map(u => u.trim()).filter(Boolean);
 
-    const urls = fileContent.match(URL_RE) || [];
     if (urls.length === 0) {
         return { success: false, error: 'No valid URLs found in the file.' };
     }
 
     const MAX_CONCURRENT_SCRAPES = 10;
     const results: { website: string; email: string }[] = [];
-    const errors: string[] = [];
-
+    
     for (let i = 0; i < urls.length; i += MAX_CONCURRENT_SCRAPES) {
         const chunk = urls.slice(i, i + MAX_CONCURRENT_SCRAPES);
         const promises = chunk.map(async (url) => {
             try {
-                const emails = await targetedCrawl(url, 1);
+                let prefixedUrl = url;
+                if (!prefixedUrl.startsWith('http')) {
+                    prefixedUrl = `https://${prefixedUrl}`;
+                }
+                const emails = await targetedCrawl(prefixedUrl, 1);
                 return { url, emails };
             } catch (error) {
                 return { url, error: `Failed to process ${url}.` };

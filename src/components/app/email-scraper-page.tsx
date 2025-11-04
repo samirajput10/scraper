@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { FileUp, Download, Wand2, Loader2, FileText, X, Search } from 'lucide-react';
+import { FileUp, Download, Wand2, Loader2, FileText, X, Search, FileSpreadsheet } from 'lucide-react';
 import { formatEmailsAction, scrapeEmailsAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from './logo';
+import * as XLSX from 'xlsx';
+
 
 type ScrapedResult = {
   website: string;
@@ -34,11 +36,18 @@ export default function EmailScraperPage() {
         fileInputRef.current.value = '';
     }
   }
+  
+  const handleFileSelect = (fileType: 'text' | 'excel') => {
+    if(fileInputRef.current) {
+        fileInputRef.current.accept = fileType === 'text' ? '.txt' : '.xlsx, .xls';
+        fileInputRef.current.click();
+    }
+  }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.type === 'text/plain') {
+      if (file.type === 'text/plain' || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         resetState();
         setFileName(file.name);
         handleScrape(file);
@@ -46,7 +55,7 @@ export default function EmailScraperPage() {
         toast({
           variant: 'destructive',
           title: 'Invalid File Type',
-          description: 'Please upload a .txt file.',
+          description: 'Please upload a .txt or Excel file.',
         });
       }
     }
@@ -70,30 +79,70 @@ export default function EmailScraperPage() {
     handleScrape(urlToScrape);
   }
 
+  const getFileContent = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const json: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            const urls = json.map(row => row[0]).filter(Boolean).join('\n');
+            resolve(urls);
+          } else {
+            resolve(e.target?.result as string);
+          }
+        } catch (error) {
+          reject('Failed to parse the file.');
+        }
+      };
+      reader.onerror = () => reject('Failed to read the file.');
+      
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
+    });
+  }
+
   async function handleScrape(source: File | string) {
     setIsScraping(true);
     setResults([]);
 
-    const content = typeof source === 'string' ? source : await source.text();
-    const result = await scrapeEmailsAction(content);
-    
-    setIsScraping(false);
+    try {
+        const content = typeof source === 'string' ? source : await getFileContent(source);
+        const result = await scrapeEmailsAction(content);
+        
+        setIsScraping(false);
 
-    if (result.success) {
-      setResults(result.results || []);
-       if (result.results?.length === 0) {
+        if (result.success) {
+          setResults(result.results || []);
+           if (result.results?.length === 0) {
+            toast({
+              title: 'No emails found',
+              description: 'The scraper ran successfully but did not find any emails.',
+            });
+          }
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Scraping Failed',
+            description: result.error,
+          });
+          resetState();
+        }
+    } catch (error) {
+        setIsScraping(false);
         toast({
-          title: 'No emails found',
-          description: 'The scraper ran successfully but did not find any emails.',
+            variant: 'destructive',
+            title: 'Error processing file',
+            description: typeof error === 'string' ? error : 'An unexpected error occurred.',
         });
-      }
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Scraping Failed',
-        description: result.error,
-      });
-      resetState();
+        resetState();
     }
   }
 
@@ -170,27 +219,32 @@ export default function EmailScraperPage() {
             <TabsContent value="file">
                 <CardHeader className='pt-0'>
                     <CardTitle>Website List</CardTitle>
-                    <CardDescription>Upload a .txt file containing one website URL per line.</CardDescription>
+                    <CardDescription>Upload a .txt or Excel file containing website URLs.</CardDescription>
                 </CardHeader>
                 <CardContent>
                 <Input
                     id="file-upload"
                     type="file"
-                    accept=".txt"
                     ref={fileInputRef}
                     onChange={handleFileChange}
                     className="hidden"
                     disabled={isScraping}
                 />
                 {!fileName && (
-                    <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isScraping}>
-                    {isScraping && !urlInput ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <FileUp className="mr-2 h-4 w-4" />
-                    )}
-                    {isScraping && !urlInput ? 'Processing...' : 'Upload .txt File'}
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button onClick={() => handleFileSelect('text')} className="w-full" disabled={isScraping}>
+                        {isScraping && !urlInput ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <FileUp className="mr-2 h-4 w-4" />
+                        )}
+                        {isScraping && !urlInput ? 'Processing...' : 'Upload .txt'}
+                        </Button>
+                        <Button onClick={() => handleFileSelect('excel')} className="w-full" disabled={isScraping}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Upload Excel
+                        </Button>
+                    </div>
                 )}
 
                 {fileName && (
