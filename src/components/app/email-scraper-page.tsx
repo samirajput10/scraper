@@ -195,9 +195,6 @@ export default function EmailScraperPage() {
                 <Button size="lg" className="px-8 py-3 font-medium transition-all shadow-lg hover:shadow-primary/30">
                     Start Scraping
                 </Button>
-                <Button size="lg" variant="outline" className="px-8 py-3 font-medium transition-all">
-                    Watch Demo
-                </Button>
             </div>
         </header>
 
