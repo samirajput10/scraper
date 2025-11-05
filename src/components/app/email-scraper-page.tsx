@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from './logo';
 import * as XLSX from 'xlsx';
@@ -62,6 +63,13 @@ export default function EmailScraperPage() {
     }
     handleScrape(urlToScrape);
   }
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleScrape(file);
+    }
+  };
 
   const getFileContent = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -213,26 +221,70 @@ export default function EmailScraperPage() {
         </section>
 
         <section className="bg-card rounded-xl shadow-xl p-6 md:p-8 mb-16 border border-border">
-            <h2 className="text-2xl font-bold text-foreground mb-6">Try Our Email Scraper</h2>
-            <form onSubmit={handleUrlSubmit} className="flex flex-col md:flex-row gap-4 mb-4">
-                <Input 
-                    type="text" 
-                    placeholder="Enter URL to scrape (e.g. example.com)" 
-                    className="flex-grow px-4 py-3 h-12 text-base focus:ring-2 focus:ring-primary focus:border-transparent"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    disabled={isScraping}
-                />
-                <Button type="submit" size="lg" className="px-6 py-3 font-medium transition-all h-12" disabled={isScraping}>
-                    {isScraping ? (
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    ) : (
-                      <Search className="mr-2 h-5 w-5" />
-                    )}
-                    Extract Emails
-                </Button>
-            </form>
-            <div className="bg-background/50 dark:bg-gray-700 rounded-lg p-4 border border-border">
+            <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Try Our Email Scraper</h2>
+            <Tabs defaultValue="single" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mx-auto max-w-md">
+                <TabsTrigger value="single">Single URL</TabsTrigger>
+                <TabsTrigger value="txt">Upload .txt</TabsTrigger>
+                <TabsTrigger value="excel">Upload Excel</TabsTrigger>
+              </TabsList>
+              <TabsContent value="single">
+                <form onSubmit={handleUrlSubmit} className="flex flex-col md:flex-row gap-4 mt-6">
+                    <Input 
+                        type="text" 
+                        placeholder="Enter URL to scrape (e.g. example.com)" 
+                        className="flex-grow px-4 py-3 h-12 text-base focus:ring-2 focus:ring-primary focus:border-transparent"
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        disabled={isScraping}
+                    />
+                    <Button type="submit" size="lg" className="px-6 py-3 font-medium transition-all h-12" disabled={isScraping}>
+                        {isScraping ? (
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        ) : (
+                          <Search className="mr-2 h-5 w-5" />
+                        )}
+                        Extract Emails
+                    </Button>
+                </form>
+              </TabsContent>
+              <TabsContent value="txt">
+                <Card className="mt-6 border-dashed">
+                  <CardContent className="p-6 flex flex-col items-center justify-center text-center">
+                    <FileText className="w-12 h-12 text-muted-foreground mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">Upload a .txt file</h3>
+                    <p className="text-muted-foreground mb-4">Select a text file with one URL per line.</p>
+                    <Button size="lg" onClick={() => fileInputRef.current?.click()} disabled={isScraping}>
+                      <FileUp className="mr-2 h-5 w-5" />
+                      Choose File
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="excel">
+                <Card className="mt-6 border-dashed">
+                  <CardContent className="p-6 flex flex-col items-center justify-center text-center">
+                    <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">Upload an Excel file</h3>
+                    <p className="text-muted-foreground mb-4">Select an .xlsx or .xls file with URLs in the first column.</p>
+                    <Button size="lg" onClick={() => fileInputRef.current?.click()} disabled={isScraping}>
+                      <FileUp className="mr-2 h-5 w-5" />
+                      Choose File
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleFileChange}
+              accept=".txt,.xlsx,.xls"
+              disabled={isScraping}
+            />
+
+            <div className="bg-background/50 dark:bg-gray-700 rounded-lg p-4 border border-border mt-8">
                 <div className="flex items-center justify-between mb-4">
                     <span className="text-muted-foreground">{isScraping ? 'Scraping...' : `${results.length} emails found`}</span>
                     <div className="flex gap-2">
