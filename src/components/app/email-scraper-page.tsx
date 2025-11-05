@@ -56,7 +56,7 @@ export default function EmailScraperPage() {
         });
         return;
     }
-    resetState();
+    
     let urlToScrape = urlInput;
     if (!urlToScrape.startsWith('http://') && !urlToScrape.startsWith('https://')) {
         urlToScrape = `https://${urlToScrape}`;
@@ -125,16 +125,18 @@ export default function EmailScraperPage() {
             title: 'Scraping Failed',
             description: result.error,
           });
-          resetState();
         }
     } catch (error) {
         setIsScraping(false);
         toast({
             variant: 'destructive',
-            title: 'Error processing file',
+            title: 'Error processing source',
             description: typeof error === 'string' ? error : 'An unexpected error occurred.',
         });
-        resetState();
+    } finally {
+        if(fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
     }
   }
 
@@ -168,10 +170,9 @@ export default function EmailScraperPage() {
     }
     const csvHeader = 'website,email\n';
     const csvRows = results.map(r => `${r.website},${r.email}`).join('\n');
-    const csvContent = 'data:text/csv;charset=utf-8,' + csvHeader + csvRows;
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvHeader + csvRows);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
+    link.setAttribute('href', csvContent);
     link.setAttribute('download', 'scraped_emails.csv');
     document.body.appendChild(link);
     link.click();
@@ -208,12 +209,12 @@ export default function EmailScraperPage() {
                     description="Extract emails from any website with our intelligent algorithms that detect patterns."
                 />
                 <FeatureCard 
-                    icon={<CheckCircle className="text-secondary w-6 h-6" />}
+                    icon={<CheckCircle className="text-primary w-6 h-6" />}
                     title="Instant Verification"
                     description="Validate emails in real-time to ensure deliverability and reduce bounce rates."
                 />
                 <FeatureCard 
-                    icon={<Shield className="text-green-500 w-6 h-6" />}
+                    icon={<Shield className="text-primary w-6 h-6" />}
                     title="GDPR Compliant"
                     description="All data is processed ethically and in compliance with privacy regulations."
                 />
@@ -239,7 +240,7 @@ export default function EmailScraperPage() {
                         disabled={isScraping}
                     />
                     <Button type="submit" size="lg" className="px-6 py-3 font-medium transition-all h-12" disabled={isScraping}>
-                        {isScraping ? (
+                        {isScraping && urlInput ? (
                           <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                         ) : (
                           <Search className="mr-2 h-5 w-5" />
@@ -255,7 +256,7 @@ export default function EmailScraperPage() {
                     <h3 className="text-xl font-semibold mb-2">Upload a .txt file</h3>
                     <p className="text-muted-foreground mb-4">Select a text file with one URL per line.</p>
                     <Button size="lg" onClick={() => fileInputRef.current?.click()} disabled={isScraping}>
-                      <FileUp className="mr-2 h-5 w-5" />
+                      {isScraping && !urlInput ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileUp className="mr-2 h-5 w-5" />}
                       Choose File
                     </Button>
                   </CardContent>
@@ -268,7 +269,7 @@ export default function EmailScraperPage() {
                     <h3 className="text-xl font-semibold mb-2">Upload an Excel file</h3>
                     <p className="text-muted-foreground mb-4">Select an .xlsx or .xls file with URLs in the first column.</p>
                     <Button size="lg" onClick={() => fileInputRef.current?.click()} disabled={isScraping}>
-                      <FileUp className="mr-2 h-5 w-5" />
+                      {isScraping && !urlInput ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileUp className="mr-2 h-5 w-5" />}
                       Choose File
                     </Button>
                   </CardContent>
@@ -284,7 +285,7 @@ export default function EmailScraperPage() {
               disabled={isScraping}
             />
 
-            <div className="bg-background/50 dark:bg-gray-700 rounded-lg p-4 border border-border mt-8">
+            <div className="bg-background/50 dark:bg-gray-700/20 rounded-lg p-4 border border-border mt-8">
                 <div className="flex items-center justify-between mb-4">
                     <span className="text-muted-foreground">{isScraping ? 'Scraping...' : `${results.length} emails found`}</span>
                     <div className="flex gap-2">
