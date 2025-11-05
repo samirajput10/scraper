@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { FileUp, Download, Wand2, Loader2, FileText, X, Search, FileSpreadsheet, CheckCircle, Shield } from 'lucide-react';
+import { FileUp, Download, Wand2, Loader2, FileText, X, Search, FileSpreadsheet, CheckCircle, Shield, List } from 'lucide-react';
 import { formatEmailsAction, scrapeEmailsAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from './logo';
 import * as XLSX from 'xlsx';
+import { Textarea } from '@/components/ui/textarea';
 
 
 type ScrapedResult = {
@@ -35,12 +36,14 @@ export default function EmailScraperPage() {
   const [isScraping, setIsScraping] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const [bulkUrlInput, setBulkUrlInput] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const resetState = () => {
     setResults([]);
     setUrlInput('');
+    setBulkUrlInput('');
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
@@ -62,6 +65,19 @@ export default function EmailScraperPage() {
         urlToScrape = `https://${urlToScrape}`;
     }
     handleScrape(urlToScrape);
+  }
+
+  const handleBulkUrlSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkUrlInput) {
+        toast({
+            variant: 'destructive',
+            title: 'URL list is empty',
+            description: 'Please enter at least one website URL to scrape.',
+        });
+        return;
+    }
+    handleScrape(bulkUrlInput);
   }
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,8 +237,9 @@ export default function EmailScraperPage() {
         <section className="bg-card rounded-xl shadow-xl p-6 md:p-8 mb-16 border border-border">
             <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Try Our Email Scraper</h2>
             <Tabs defaultValue="single" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mx-auto max-w-md">
+              <TabsList className="grid w-full grid-cols-4 mx-auto max-w-lg">
                 <TabsTrigger value="single">Single URL</TabsTrigger>
+                <TabsTrigger value="bulk">Bulk URLs</TabsTrigger>
                 <TabsTrigger value="txt">Upload .txt</TabsTrigger>
                 <TabsTrigger value="excel">Upload Excel</TabsTrigger>
               </TabsList>
@@ -246,6 +263,25 @@ export default function EmailScraperPage() {
                     </Button>
                 </form>
               </TabsContent>
+              <TabsContent value="bulk">
+                <form onSubmit={handleBulkUrlSubmit} className="flex flex-col gap-4 mt-6">
+                  <Textarea
+                    placeholder="Enter one URL per line..."
+                    className="min-h-48 text-base"
+                    value={bulkUrlInput}
+                    onChange={(e) => setBulkUrlInput(e.target.value)}
+                    disabled={isScraping}
+                  />
+                  <Button type="submit" size="lg" className="px-6 py-3 font-medium transition-all h-12" disabled={isScraping}>
+                    {isScraping && !urlInput ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      <List className="mr-2 h-5 w-5" />
+                    )}
+                    Extract From List
+                  </Button>
+                </form>
+              </TabsContent>
               <TabsContent value="txt">
                 <Card className="mt-6 border-dashed">
                   <CardContent className="p-6 flex flex-col items-center justify-center text-center">
@@ -253,7 +289,7 @@ export default function EmailScraperPage() {
                     <h3 className="text-xl font-semibold mb-2">Upload a .txt file</h3>
                     <p className="text-muted-foreground mb-4">Select a text file with one URL per line.</p>
                     <Button size="lg" onClick={() => fileInputRef.current?.click()} disabled={isScraping}>
-                      {isScraping && !urlInput ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileUp className="mr-2 h-5 w-5" />}
+                      {isScraping && !urlInput && !bulkUrlInput ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileUp className="mr-2 h-5 w-5" />}
                       Choose File
                     </Button>
                   </CardContent>
@@ -266,7 +302,7 @@ export default function EmailScraperPage() {
                     <h3 className="text-xl font-semibold mb-2">Upload an Excel file</h3>
                     <p className="text-muted-foreground mb-4">Select an .xlsx or .xls file with URLs in the first column.</p>
                     <Button size="lg" onClick={() => fileInputRef.current?.click()} disabled={isScraping}>
-                      {isScraping && !urlInput ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileUp className="mr-2 h-5 w-5" />}
+                      {isScraping && !urlInput && !bulkUrlInput ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <FileUp className="mr-2 h-5 w-5" />}
                       Choose File
                     </Button>
                   </CardContent>
