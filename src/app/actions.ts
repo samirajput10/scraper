@@ -6,7 +6,7 @@ import * as cheerio from 'cheerio';
 const URL_RE = /https?:\/\/[^\s/$.?#].[^\s]*/gi;
 const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 const HEADERS = {
-  'User-Agent': 'WebmailHarvester/1.0 (+https://firebase.google.com/docs/app-hosting)',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
 };
 const CRAWL_KEYWORDS = ["contact", "about", "support", "team", "info"];
 
